@@ -135,7 +135,7 @@ def _get_node_tree(file_key, frame_id, pat):
         return None
 
 
-def ux_handler(*, node_id, file_key, pat, extra, claude_path, model='sonnet', **_):
+def ux_handler(*, node_id, file_key, pat, extra, claude_path, model='sonnet', reply_lang='en', **_):
     # Phase 1: Resolve parent frame
     frame = _resolve_parent_frame(file_key, node_id, pat)
     if not frame:
@@ -211,6 +211,8 @@ Severity emojis: 🔴 severity 4, 🟠 severity 3, 🟡 severity 1-2
 End with one blank line then one positive observation:
   ✅ [What the design does well, under 20 words]
 
+{"IMPORTANT: Write your entire reply in Simplified Chinese (简体中文). All heuristic names, findings, and recommendations must be in Chinese. Keep the H1-H10 labels and emojis as-is." if reply_lang == "cn" else ""}
+
 No preamble, no explanation — just the formatted reply.'''
 
     try:
@@ -219,7 +221,8 @@ No preamble, no explanation — just the formatted reply.'''
             capture_output=True, timeout=120
         )
         reply = _strip_markdown(result.stdout.decode('utf-8', errors='replace').strip() or 'Unable to generate evaluation.')
-        return f'\U0001f5e3\ufe0f Claude UX Audit \u2014 {screen_name}\n\n{reply}\n\n\u2014 Claude'
+        header = f'\U0001f5e3\ufe0f Claude UX \u5ba1\u6838 \u2014 {screen_name}' if reply_lang == 'cn' else f'\U0001f5e3\ufe0f Claude UX Audit \u2014 {screen_name}'
+        return f'{header}\n\n{reply}\n\n\u2014 Claude'
     except Exception:
         # Fallback: inline tree data (no image)
         try:
@@ -233,7 +236,9 @@ No preamble, no explanation — just the formatted reply.'''
                 capture_output=True, timeout=120
             )
             reply = _strip_markdown(result.stdout.decode('utf-8', errors='replace').strip() or 'Unable to generate evaluation.')
-            return f'\U0001f5e3\ufe0f Claude UX Audit \u2014 {screen_name}\n\n{reply}\n\nNote: Visual analysis limited\n\n\u2014 Claude'
+            header = f'\U0001f5e3\ufe0f Claude UX \u5ba1\u6838 \u2014 {screen_name}' if reply_lang == 'cn' else f'\U0001f5e3\ufe0f Claude UX Audit \u2014 {screen_name}'
+            note = '\u6ce8\u610f\uff1a\u89c6\u89c9\u5206\u6790\u53d7\u9650' if reply_lang == 'cn' else 'Note: Visual analysis limited'
+            return f'{header}\n\n{reply}\n\n{note}\n\n\u2014 Claude'
         except Exception as e:
             return f'\U0001f5e3\ufe0f Claude UX Audit\n\n\u26a0\ufe0f Evaluation failed: {e}\n\n\u2014 Claude'
     finally:

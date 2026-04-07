@@ -61,7 +61,7 @@ def _strip_markdown(text):
     return text
 
 
-def tone_handler(*, texts, targeted, target_name, primary_text, locale, node_name, extra, claude_path, model='sonnet', **_):
+def tone_handler(*, texts, targeted, target_name, primary_text, locale, node_name, extra, claude_path, model='sonnet', reply_lang='en', **_):
     tov_guide = _load_tov_guide(locale) or UK_GUIDELINES
     skill = _cached_load('skill', _SKILL_PATH, _FALLBACK_SKILL)
 
@@ -93,6 +93,7 @@ def tone_handler(*, texts, targeted, target_name, primary_text, locale, node_nam
         + extra_line + "\n\n"
         + scope_instruction + "\n\n"
         + "Text nodes:\n" + text_list + "\n\n"
+        + ("IMPORTANT: Write your entire reply in Simplified Chinese (\u7b80\u4f53\u4e2d\u6587). All text, explanations, and suggestions must be in Chinese.\n\n" if reply_lang == "cn" else "")
         + "Respond with ONLY the comment reply. No preamble, no explanation — just the output as specified by Mode 3."
     )
 
@@ -102,4 +103,5 @@ def tone_handler(*, texts, targeted, target_name, primary_text, locale, node_nam
     )
 
     reply = _strip_markdown(result.stdout.decode('utf-8', errors='replace').strip() or 'Unable to generate audit.')
-    return f'\U0001f5e3\ufe0f Claude ToV Audit\n\n{reply}\n\n\u2014 Claude'
+    header = '\U0001f5e3\ufe0f Claude \u8bed\u6c14\u5ba1\u6838' if reply_lang == 'cn' else '\U0001f5e3\ufe0f Claude ToV Audit'
+    return f'{header}\n\n{reply}\n\n\u2014 Claude'

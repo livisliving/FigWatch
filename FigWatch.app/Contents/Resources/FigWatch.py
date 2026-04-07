@@ -617,7 +617,7 @@ class FigWatch(NSObject):
 
     def applicationDidFinishLaunching_(self, notif):
         self._state = {
-            "pat": None, "user": None, "locale": "uk", "model": "sonnet",
+            "pat": None, "user": None, "locale": "uk", "model": "sonnet", "reply_lang": "en",
             "files": [], "current": None, "watcher": None,
             "daemon_running": False,
             "installing_claude": False,
@@ -627,6 +627,7 @@ class FigWatch(NSObject):
         self._state["pat"] = config.get("figmaPat")
         self._state["locale"] = config.get("watchLocale", "uk")
         self._state["model"] = config.get("aiModel", "sonnet")
+        self._state["reply_lang"] = config.get("replyLang", "en")
 
         # Add hidden Edit menu so Cmd+V/C/X/A work in text fields and dialogs
         menubar = NSMenu.alloc().init()
@@ -904,7 +905,7 @@ class FigWatch(NSObject):
         alert.addButtonWithTitle_("Cancel")
 
         # Build accessory view
-        acc = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, 340, 140))
+        acc = FlippedView.alloc().initWithFrame_(NSMakeRect(0, 0, 340, 190))
 
         # ── Figma Token ──
         tok_label = _label("Figma Personal Access Token", size=12, weight=NSFontWeightMedium)
@@ -935,6 +936,18 @@ class FigWatch(NSObject):
         model_popup.selectItemAtIndex_(model_map.get(self._state.get("model", "sonnet"), 0))
         acc.addSubview_(model_popup)
 
+        # ── Reply Language ──
+        lang_label = _label("Reply Language", size=12, weight=NSFontWeightMedium)
+        lang_label.setFrameOrigin_((0, 128))
+        acc.addSubview_(lang_label)
+
+        lang_popup = NSPopUpButton.alloc().initWithFrame_pullsDown_(NSMakeRect(0, 150, 200, 24), False)
+        lang_popup.addItemWithTitle_("English")
+        lang_popup.addItemWithTitle_("\u4e2d\u6587 (Chinese)")
+        lang_map = {"en": 0, "cn": 1}
+        lang_popup.selectItemAtIndex_(lang_map.get(self._state.get("reply_lang", "en"), 0))
+        acc.addSubview_(lang_popup)
+
         alert.setAccessoryView_(acc)
         alert.window().setInitialFirstResponder_(tok_input)
 
@@ -957,13 +970,23 @@ class FigWatch(NSObject):
             # Save model
             rmap = {0: "sonnet", 1: "opus", 2: "haiku"}
             new_model = rmap.get(model_popup.indexOfSelectedItem(), "sonnet")
+
+            # Save reply language
+            lrmap = {0: "en", 1: "cn"}
+            new_lang = lrmap.get(lang_popup.indexOfSelectedItem(), "en")
+
+            needs_restart = False
             if new_model != self._state.get("model"):
                 self._state["model"] = new_model
                 c = _load_config(); c["aiModel"] = new_model; _save_config(c)
-                # Restart watcher if running so it picks up new model
-                if self._is_watching() and self._state["current"]:
-                    self._do_stop()
-                    self._do_start(self._state["current"])
+                needs_restart = True
+            if new_lang != self._state.get("reply_lang"):
+                self._state["reply_lang"] = new_lang
+                c = _load_config(); c["replyLang"] = new_lang; _save_config(c)
+                needs_restart = True
+            if needs_restart and self._is_watching() and self._state["current"]:
+                self._do_stop()
+                self._do_start(self._state["current"])
 
     @objc.typedSelector(b"v@:@")
     def doLocale_(self, sender):
@@ -1030,6 +1053,7 @@ class FigWatch(NSObject):
             fi["key"], self._state["pat"],
             locale=self._state.get("locale", "uk"),
             model=self._state.get("model", "sonnet"),
+            reply_lang=self._state.get("reply_lang", "en"),
             claude_path=CLAUDE_PATH,
             log=lambda msg: open("/tmp/fw-watcher.log", "a", encoding="utf-8").write(msg + "\n"),
             on_reply=on_reply,
