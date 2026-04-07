@@ -188,7 +188,7 @@ Read the data sources, evaluate all 10 heuristics, then respond with ONLY a plai
 CRITICAL RULES:
 - Do NOT create any files. Do NOT write a .md report. Your entire output IS the comment reply.
 - Figma comments are PLAIN TEXT ONLY: no markdown, no asterisks, no hashes, no backticks, no bullet markers (* or -), no code blocks.
-- Use blank lines between heuristics for readability.
+- Keep it CONCISE. The entire reply MUST be under 4000 characters. This is a strict limit.
 - Do NOT add sign-offs, summaries, headers, or preamble. The header and sign-off are added automatically.
 
 Structure:
@@ -197,21 +197,19 @@ Line 1: Overall severity verdict emoji and label
 
 Blank line.
 
-Then list ALL 10 heuristics in order H1-H10:
+Then list ALL 10 heuristics in order H1-H10. Keep each to 1-2 lines max:
 
-For passing heuristics (severity 0):
-  H[N] [Short name] ✅ [Brief reason why it passes]
+For passing heuristics (severity 0): put them on one line each
+  H[N] [Short name] ✅ [Brief reason, under 15 words]
 
-For heuristics with findings (severity 1+):
-  H[N] [Short name] [severity emoji] [Finding and why it matters]
-  → [Specific recommendation]
+For heuristics with findings (severity 1+): two lines max
+  H[N] [Short name] [emoji] [Finding in under 20 words]
+  → [Recommendation in under 15 words]
 
 Severity emojis: 🔴 severity 4, 🟠 severity 3, 🟡 severity 1-2
 
-Blank line between each heuristic that has a finding. No blank line between passing heuristics.
-
-End with one blank line then exactly one positive observation:
-  ✅ [What the design does well and why it works]
+End with one blank line then one positive observation:
+  ✅ [What the design does well, under 20 words]
 
 No preamble, no explanation — just the formatted reply.'''
 

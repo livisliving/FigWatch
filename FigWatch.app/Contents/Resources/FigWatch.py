@@ -118,9 +118,10 @@ def _get_open_files():
         if _is_figma_running():
             _relaunch_figma_with_cdp()
         return []
+    import html as _html
     files = []
     for p in pages:
-        url, title = p.get("url", ""), p.get("title", "")
+        url, title = p.get("url", ""), _html.unescape(p.get("title", ""))
         for s in [" \u2013 Figma", " – Figma", " - Figma", " \u2013 FigJam", " – FigJam", " - FigJam"]:
             title = title.replace(s, "")
         if "figma.com" in url and ("/design/" in url or "/board/" in url):

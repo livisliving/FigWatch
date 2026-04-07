@@ -269,6 +269,16 @@ def poll_once(file_key, pat, processed_ids, *, locale, claude_path, model='sonne
                 try: figma_delete(f'/files/{file_key}/comments/{ack_id}', pat)
                 except Exception: pass
 
+            # Figma API comment limit is ~5000 chars — truncate if needed
+            FIGMA_COMMENT_LIMIT = 4900
+            if len(response) > FIGMA_COMMENT_LIMIT:
+                truncated = response[:FIGMA_COMMENT_LIMIT - 60]
+                # Cut at last complete line
+                last_nl = truncated.rfind('\n')
+                if last_nl > FIGMA_COMMENT_LIMIT // 2:
+                    truncated = truncated[:last_nl]
+                response = truncated + f'\n\n(truncated \u2014 full audit was {len(response)} chars)\n\n{EM_DASH} Claude'
+
             figma_post(f'/files/{file_key}/comments', {
                 'message': response,
                 'comment_id': reply_to_id,
