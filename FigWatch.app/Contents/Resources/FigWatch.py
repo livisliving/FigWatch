@@ -928,9 +928,9 @@ class FigWatch(NSObject):
         acc.addSubview_(model_label)
 
         model_popup = NSPopUpButton.alloc().initWithFrame_pullsDown_(NSMakeRect(0, 96, 200, 24), False)
-        model_popup.addItemWithTitle_("Sonnet 4.6 (fast, cost-effective)")
-        model_popup.addItemWithTitle_("Opus 4.6 (most capable)")
-        model_popup.addItemWithTitle_("Haiku 4.5 (fastest, cheapest)")
+        model_popup.addItemWithTitle_("Sonnet (fast, cost-effective)")
+        model_popup.addItemWithTitle_("Opus (most capable)")
+        model_popup.addItemWithTitle_("Haiku (fastest, cheapest)")
         model_map = {"sonnet": 0, "opus": 1, "haiku": 2}
         model_popup.selectItemAtIndex_(model_map.get(self._state.get("model", "sonnet"), 0))
         acc.addSubview_(model_popup)
