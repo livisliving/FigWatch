@@ -85,11 +85,39 @@ def _validate_token(pat):
     d = _figma_get("/me", pat)
     return d.get("handle") if d else None
 
+def _is_figma_running():
+    """Check if Figma Desktop is running (without requiring CDP)."""
+    try:
+        out = subprocess.check_output(["pgrep", "-x", "Figma"], stderr=subprocess.DEVNULL)
+        return bool(out.strip())
+    except Exception:
+        return False
+
+
+def _relaunch_figma_with_cdp():
+    """Quit Figma and relaunch it with --remote-debugging-port=9222."""
+    try:
+        subprocess.run(["osascript", "-e", 'tell application "Figma" to quit'], capture_output=True, timeout=5)
+        # Wait for Figma to fully quit
+        import time
+        for _ in range(10):
+            if not _is_figma_running():
+                break
+            time.sleep(0.5)
+        subprocess.Popen(["open", "-a", "Figma", "--args", "--remote-debugging-port=9222"])
+    except Exception:
+        pass
+
+
 def _get_open_files():
     try:
         with urllib.request.urlopen(urllib.request.Request("http://localhost:9222/json"), timeout=2) as r:
             pages = json.loads(r.read())
-    except Exception: return []
+    except Exception:
+        # CDP not available — if Figma is running, relaunch it with CDP enabled
+        if _is_figma_running():
+            _relaunch_figma_with_cdp()
+        return []
     files = []
     for p in pages:
         url, title = p.get("url", ""), p.get("title", "")
@@ -894,7 +922,7 @@ class FigWatch(NSObject):
     @objc.typedSelector(b"v@:@")
     def doOpenFigma_(self, sender):
         if os.path.exists("/Applications/Figma.app"):
-            subprocess.run(["open", "-a", "Figma"], capture_output=True)
+            subprocess.run(["open", "-a", "Figma", "--args", "--remote-debugging-port=9222"], capture_output=True)
         else:
             NSWorkspace.sharedWorkspace().openURL_(
                 NSURL.URLWithString_("https://www.figma.com/downloads/"))
