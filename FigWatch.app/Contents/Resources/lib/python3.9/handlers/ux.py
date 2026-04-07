@@ -183,11 +183,41 @@ Now evaluate this screen:
 
 {data_instructions}
 
-Read the data sources, evaluate all 10 heuristics, then respond with ONLY the comment reply as specified by the output format. No preamble, no markdown, no explanation — just the formatted reply.'''
+Read the data sources, evaluate all 10 heuristics, then respond with ONLY a plain-text comment reply suitable for posting as a Figma comment.
+
+CRITICAL RULES:
+- Do NOT create any files. Do NOT write a .md report. Your entire output IS the comment reply.
+- Figma comments are PLAIN TEXT ONLY: no markdown, no asterisks, no hashes, no backticks, no bullet markers (* or -), no code blocks.
+- Use blank lines between heuristics for readability.
+- Do NOT add sign-offs, summaries, headers, or preamble. The header and sign-off are added automatically.
+
+Structure:
+Line 1: Overall severity verdict emoji and label
+  🟢 No issues  |  🟡 Minor issues  |  🟠 Major issues  |  🔴 Critical issues
+
+Blank line.
+
+Then list ALL 10 heuristics in order H1-H10:
+
+For passing heuristics (severity 0):
+  H[N] [Short name] ✅ [Brief reason why it passes]
+
+For heuristics with findings (severity 1+):
+  H[N] [Short name] [severity emoji] [Finding and why it matters]
+  → [Specific recommendation]
+
+Severity emojis: 🔴 severity 4, 🟠 severity 3, 🟡 severity 1-2
+
+Blank line between each heuristic that has a finding. No blank line between passing heuristics.
+
+End with one blank line then exactly one positive observation:
+  ✅ [What the design does well and why it works]
+
+No preamble, no explanation — just the formatted reply.'''
 
     try:
         result = subprocess.run(
-            [claude_path, '-p', prompt, '--print', '--allowedTools', 'Read,Bash'],
+            [claude_path, '-p', prompt, '--print', '--allowedTools', 'Read'],
             capture_output=True, timeout=120
         )
         reply = _strip_markdown(result.stdout.decode('utf-8', errors='replace').strip() or 'Unable to generate evaluation.')
