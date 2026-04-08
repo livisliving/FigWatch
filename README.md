@@ -17,6 +17,16 @@ Drop a comment like `@tone` or `@ux` on any frame in Figma, and FigWatch replies
 
 ## Install
 
+**One-line install** (recommended):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/livisliving/FigWatch/main/install.sh | bash
+```
+
+This downloads the latest release, installs `FigWatch.app` to `/Applications`, clears the Gatekeeper quarantine, and launches it. After that, all future updates can be done in-app via **Settings → Check for Updates → Install & Restart**.
+
+**Manual install:**
+
 1. Download **FigWatch.zip** from the [latest release](https://github.com/livisliving/FigWatch/releases)
 2. Unzip and drag `FigWatch.app` to **Applications**
 3. First launch: **right-click → Open** (one-time Gatekeeper bypass)
