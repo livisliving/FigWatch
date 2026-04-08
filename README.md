@@ -57,6 +57,10 @@ FigWatch stores its config in `~/.figwatch/`:
 - `recent-watches.json` — recently watched files
 - `.processed-comments.json` — tracks which comments have been handled
 
+## What's new in v1.1.5
+
+- **Fix "Claude not installed" false positive** — the claude CLI path is now re-resolved on every dependency check instead of being cached once at launch. If you install Claude Code after starting FigWatch (or if claude lives in a non-standard location like `~/.local/bin`, `~/.volta/bin`, `~/.bun/bin`, etc.), FigWatch will now pick it up automatically. Falls back to searching an augmented PATH with `shutil.which` if none of the common paths match.
+
 ## What's new in v1.1.4
 
 - **Real in-app auto-update** — clicking "Check for Updates" now offers an **Install & Restart** button that downloads the new build, swaps `/Applications/FigWatch.app` in place, clears Gatekeeper quarantine, and relaunches FigWatch. No more manual drag-to-Applications on every release.

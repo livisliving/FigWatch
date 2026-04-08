@@ -9,7 +9,7 @@ from PyObjCTools import AppHelper
 
 # ── Config ──────────────────────────────────────────────────────────
 
-VERSION = "1.1.4"
+VERSION = "1.1.5"
 RELEASES_API = "https://api.github.com/repos/livisliving/FigWatch/releases/latest"
 RELEASES_URL = "https://github.com/livisliving/FigWatch/releases/latest"
 
@@ -25,9 +25,48 @@ _RESOURCES = os.path.join(os.path.dirname(_THIS_DIR), "Resources") if _THIS_DIR.
 # figma-ds-cli is optional — used for daemon (screenshot fallback)
 FIGMA_CLI_PATH = os.path.join(HOME, "figma-cli", "src", "index.js")
 
-# Resolve claude CLI path
-CLAUDE_PATH = next((p for p in ["/opt/homebrew/bin/claude", "/usr/local/bin/claude"]
-                    if os.path.exists(p)), "claude")
+# Resolve claude CLI path — evaluated lazily so it picks up installs that
+# happened after FigWatch launched, and so it can search more locations.
+_CLAUDE_COMMON_PATHS = [
+    "/opt/homebrew/bin/claude",
+    "/usr/local/bin/claude",
+    os.path.expanduser("~/.local/bin/claude"),
+    os.path.expanduser("~/.volta/bin/claude"),
+    os.path.expanduser("~/.bun/bin/claude"),
+    os.path.expanduser("~/.npm-global/bin/claude"),
+    "/opt/local/bin/claude",
+]
+
+
+def _resolve_claude_path():
+    """Find the claude CLI, checking common paths then an augmented PATH."""
+    for p in _CLAUDE_COMMON_PATHS:
+        if os.path.exists(p):
+            return p
+    # Fall back to searching PATH with common bin dirs prepended, since
+    # .app bundles inherit a minimal PATH from launchd.
+    import shutil
+    augmented = ":".join([
+        "/opt/homebrew/bin",
+        "/usr/local/bin",
+        os.path.expanduser("~/.local/bin"),
+        os.path.expanduser("~/.volta/bin"),
+        os.path.expanduser("~/.bun/bin"),
+        os.environ.get("PATH", "/usr/bin:/bin"),
+    ])
+    found = shutil.which("claude", path=augmented)
+    return found or "claude"
+
+
+def _claude_path():
+    """Return the currently resolved claude path (re-evaluated on every call)."""
+    return _resolve_claude_path()
+
+
+# Backwards compatibility: some callers still read CLAUDE_PATH directly.
+# Keep it as a snapshot of the current resolution at import time — but
+# check_deps and _do_start call _claude_path() instead to stay current.
+CLAUDE_PATH = _resolve_claude_path()
 
 W = 320
 PAD = 12
@@ -294,15 +333,16 @@ def check_deps(open_files=None):
     """Check all dependencies. Returns dict of status per dep."""
     deps = {}
 
-    # Claude Code CLI
-    claude_ok = os.path.exists(CLAUDE_PATH) if CLAUDE_PATH != "claude" else False
-    deps["claude"] = {"ok": claude_ok, "path": CLAUDE_PATH if claude_ok else None}
+    # Claude Code CLI — re-resolve each time so post-install detection works
+    claude_path = _resolve_claude_path()
+    claude_ok = claude_path != "claude" and os.path.exists(claude_path)
+    deps["claude"] = {"ok": claude_ok, "path": claude_path if claude_ok else None}
 
     # Claude auth status
     if claude_ok:
         try:
             result = subprocess.run(
-                [CLAUDE_PATH, 'auth', 'status'],
+                [claude_path, 'auth', 'status'],
                 capture_output=True, timeout=5,
                 env={**os.environ, "PATH": f"/opt/homebrew/bin:/usr/local/bin:{os.environ.get('PATH', '')}"}
             )
@@ -1317,7 +1357,7 @@ class FigWatch(NSObject):
             locale=self._state.get("locale", "uk"),
             model=self._state.get("model", "sonnet"),
             reply_lang=self._state.get("reply_lang", "en"),
-            claude_path=CLAUDE_PATH,
+            claude_path=_resolve_claude_path(),
             log=lambda msg: open("/tmp/fw-watcher.log", "a", encoding="utf-8").write(msg + "\n"),
             on_reply=on_reply,
         )
