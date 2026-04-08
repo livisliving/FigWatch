@@ -57,6 +57,11 @@ FigWatch stores its config in `~/.figwatch/`:
 - `recent-watches.json` — recently watched files
 - `.processed-comments.json` — tracks which comments have been handled
 
+## What's new in v1.1.3
+
+- **Fix "Unable to generate audit" on Apple Silicon** — `@tone` and `@ux` handlers now pass an augmented `PATH` to the `claude` subprocess so it can find `node` in `/opt/homebrew/bin`. Previously, macOS gave .app bundles a minimal PATH, so Claude Code couldn't locate its Node.js runtime when spawned from FigWatch and died silently.
+- **Surface claude errors in audits** — when an audit fails, the reply now includes the actual stderr from `claude` instead of a bare "Unable to generate audit." line, so failures are self-diagnosing.
+
 ## What's new in v1.1.2
 
 - **Check for Updates** — new button in the Settings panel that checks the latest release on GitHub and opens the release page when an update is available.

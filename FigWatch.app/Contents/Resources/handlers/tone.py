@@ -97,11 +97,21 @@ def tone_handler(*, texts, targeted, target_name, primary_text, locale, node_nam
         + "Respond with ONLY the comment reply. No preamble, no explanation — just the output as specified by Mode 3."
     )
 
+    # .app bundles inherit a minimal PATH, so claude can't find node.
+    # Prepend the common Homebrew / system bin dirs so the CLI resolves.
+    env = {**os.environ, "PATH": f"/opt/homebrew/bin:/usr/local/bin:{os.environ.get('PATH', '/usr/bin:/bin')}"}
     result = subprocess.run(
         [claude_path, '--print', '-p', prompt, '--model', model],
-        capture_output=True, timeout=60
+        capture_output=True, timeout=60, env=env,
     )
 
-    reply = _strip_markdown(result.stdout.decode('utf-8', errors='replace').strip() or 'Unable to generate audit.')
+    stdout = result.stdout.decode('utf-8', errors='replace').strip()
+    if stdout:
+        reply = _strip_markdown(stdout)
+    else:
+        err = result.stderr.decode('utf-8', errors='replace').strip()
+        if len(err) > 400:
+            err = err[:400] + '\u2026'
+        reply = 'Unable to generate audit.\n\n' + (f'Error: {err}' if err else f'claude exited with code {result.returncode}')
     header = '\U0001f5e3\ufe0f Claude \u8bed\u6c14\u5ba1\u6838' if reply_lang == 'cn' else '\U0001f5e3\ufe0f Claude ToV Audit'
     return f'{header}\n\n{reply}\n\n\u2014 Claude'

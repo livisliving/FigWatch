@@ -215,12 +215,24 @@ End with one blank line then one positive observation:
 
 No preamble, no explanation — just the formatted reply.'''
 
+    # .app bundles inherit a minimal PATH, so claude can't find node.
+    env = {**os.environ, "PATH": f"/opt/homebrew/bin:/usr/local/bin:{os.environ.get('PATH', '/usr/bin:/bin')}"}
+
+    def _reply_from(result):
+        stdout = result.stdout.decode('utf-8', errors='replace').strip()
+        if stdout:
+            return _strip_markdown(stdout)
+        err = result.stderr.decode('utf-8', errors='replace').strip()
+        if len(err) > 400:
+            err = err[:400] + '\u2026'
+        return 'Unable to generate evaluation.\n\n' + (f'Error: {err}' if err else f'claude exited with code {result.returncode}')
+
     try:
         result = subprocess.run(
             [claude_path, '-p', prompt, '--print', '--allowedTools', 'Read', '--model', model],
-            capture_output=True, timeout=120
+            capture_output=True, timeout=120, env=env,
         )
-        reply = _strip_markdown(result.stdout.decode('utf-8', errors='replace').strip() or 'Unable to generate evaluation.')
+        reply = _reply_from(result)
         header = f'\U0001f5e3\ufe0f Claude UX \u5ba1\u6838 \u2014 {screen_name}' if reply_lang == 'cn' else f'\U0001f5e3\ufe0f Claude UX Audit \u2014 {screen_name}'
         return f'{header}\n\n{reply}\n\n\u2014 Claude'
     except Exception:
@@ -233,9 +245,9 @@ No preamble, no explanation — just the formatted reply.'''
 
             result = subprocess.run(
                 [claude_path, '--print', '-p', fallback_prompt, '--model', model],
-                capture_output=True, timeout=120
+                capture_output=True, timeout=120, env=env,
             )
-            reply = _strip_markdown(result.stdout.decode('utf-8', errors='replace').strip() or 'Unable to generate evaluation.')
+            reply = _reply_from(result)
             header = f'\U0001f5e3\ufe0f Claude UX \u5ba1\u6838 \u2014 {screen_name}' if reply_lang == 'cn' else f'\U0001f5e3\ufe0f Claude UX Audit \u2014 {screen_name}'
             note = '\u6ce8\u610f\uff1a\u89c6\u89c9\u5206\u6790\u53d7\u9650' if reply_lang == 'cn' else 'Note: Visual analysis limited'
             return f'{header}\n\n{reply}\n\n{note}\n\n\u2014 Claude'

@@ -9,7 +9,7 @@ from PyObjCTools import AppHelper
 
 # ── Config ──────────────────────────────────────────────────────────
 
-VERSION = "1.1.2"
+VERSION = "1.1.3"
 RELEASES_API = "https://api.github.com/repos/livisliving/FigWatch/releases/latest"
 RELEASES_URL = "https://github.com/livisliving/FigWatch/releases/latest"
 
