@@ -57,6 +57,10 @@ FigWatch stores its config in `~/.figwatch/`:
 - `recent-watches.json` — recently watched files
 - `.processed-comments.json` — tracks which comments have been handled
 
+## What's new in v1.1.4
+
+- **Real in-app auto-update** — clicking "Check for Updates" now offers an **Install & Restart** button that downloads the new build, swaps `/Applications/FigWatch.app` in place, clears Gatekeeper quarantine, and relaunches FigWatch. No more manual drag-to-Applications on every release.
+
 ## What's new in v1.1.3
 
 - **Fix "Unable to generate audit" on Apple Silicon** — `@tone` and `@ux` handlers now pass an augmented `PATH` to the `claude` subprocess so it can find `node` in `/opt/homebrew/bin`. Previously, macOS gave .app bundles a minimal PATH, so Claude Code couldn't locate its Node.js runtime when spawned from FigWatch and died silently.

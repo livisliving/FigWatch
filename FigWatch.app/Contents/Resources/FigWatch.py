@@ -9,7 +9,7 @@ from PyObjCTools import AppHelper
 
 # ── Config ──────────────────────────────────────────────────────────
 
-VERSION = "1.1.3"
+VERSION = "1.1.4"
 RELEASES_API = "https://api.github.com/repos/livisliving/FigWatch/releases/latest"
 RELEASES_URL = "https://github.com/livisliving/FigWatch/releases/latest"
 
@@ -91,11 +91,17 @@ def _fetch_latest_release():
         })
         with urllib.request.urlopen(req, timeout=10) as r:
             d = json.loads(r.read())
+        zip_url = next(
+            (a.get("browser_download_url") for a in d.get("assets", [])
+             if a.get("name", "").lower().endswith(".zip")),
+            None,
+        )
         return {
             "tag": d.get("tag_name", ""),
             "name": d.get("name", ""),
             "url": d.get("html_url", RELEASES_URL),
             "body": d.get("body", ""),
+            "zip_url": zip_url,
         }
     except Exception:
         return None
@@ -1128,11 +1134,115 @@ class FigWatch(NSObject):
         alert.setMessageText_(f"Update available: {latest.get('tag', '')}")
         alert.setInformativeText_(
             f"You\u2019re on v{VERSION}.\n\n{body}" if body else f"You\u2019re on v{VERSION}.")
-        alert.addButtonWithTitle_("View Release")
-        alert.addButtonWithTitle_("Later")
+
+        zip_url = latest.get("zip_url")
+        if zip_url:
+            alert.addButtonWithTitle_("Install & Restart")
+            alert.addButtonWithTitle_("View on GitHub")
+            alert.addButtonWithTitle_("Later")
+            resp = alert.runModal()
+            if resp == NSAlertFirstButtonReturn:
+                _post_notification("FigWatch", "Downloading update\u2026")
+                threading.Thread(
+                    target=self._install_update, args=(zip_url,), daemon=True
+                ).start()
+            elif resp == NSAlertSecondButtonReturn:
+                NSWorkspace.sharedWorkspace().openURL_(
+                    NSURL.URLWithString_(latest.get("url", RELEASES_URL)))
+        else:
+            # No zip asset found (shouldn't happen) — fall back to browser.
+            alert.addButtonWithTitle_("View on GitHub")
+            alert.addButtonWithTitle_("Later")
+            if alert.runModal() == NSAlertFirstButtonReturn:
+                NSWorkspace.sharedWorkspace().openURL_(
+                    NSURL.URLWithString_(latest.get("url", RELEASES_URL)))
+
+    def _install_update(self, zip_url):
+        """Download the new .app, stage it, and spawn a swap-and-relaunch helper."""
+        import shutil
+        try:
+            cache = os.path.join(HOME, "Library", "Caches", "FigWatch")
+            os.makedirs(cache, exist_ok=True)
+            zip_path = os.path.join(cache, "update.zip")
+            staging = os.path.join(cache, "staging")
+
+            # Download
+            with urllib.request.urlopen(zip_url, timeout=120) as r, open(zip_path, "wb") as f:
+                shutil.copyfileobj(r, f)
+
+            # Extract
+            shutil.rmtree(staging, ignore_errors=True)
+            os.makedirs(staging, exist_ok=True)
+            subprocess.run(["/usr/bin/ditto", "-x", "-k", zip_path, staging], check=True)
+
+            new_app = os.path.join(staging, "FigWatch.app")
+            if not os.path.isdir(new_app):
+                raise RuntimeError("FigWatch.app not found inside downloaded zip")
+
+            # Remove quarantine so the user doesn't hit Gatekeeper again
+            subprocess.run(
+                ["/usr/bin/xattr", "-dr", "com.apple.quarantine", new_app],
+                capture_output=True,
+            )
+
+            # Where is the currently running app installed?
+            current_app = NSBundle.mainBundle().bundlePath()
+            if not current_app.endswith(".app"):
+                raise RuntimeError(f"Running from unexpected location: {current_app}")
+
+            # Write a helper script that waits for us to exit, swaps, and relaunches
+            script_path = os.path.join(cache, "install.sh")
+            script = (
+                "#!/bin/bash\n"
+                "set -e\n"
+                "# Wait for FigWatch to fully exit (up to ~10s)\n"
+                "for i in $(seq 1 40); do\n"
+                "  if ! pgrep -x FigWatch > /dev/null; then break; fi\n"
+                "  sleep 0.25\n"
+                "done\n"
+                "sleep 0.5\n"
+                f'rm -rf "{current_app}"\n'
+                f'/usr/bin/ditto "{new_app}" "{current_app}"\n'
+                f'/usr/bin/xattr -dr com.apple.quarantine "{current_app}" 2>/dev/null || true\n'
+                f'open "{current_app}"\n'
+            )
+            with open(script_path, "w") as f:
+                f.write(script)
+            os.chmod(script_path, 0o755)
+
+            # Spawn detached so it survives our termination
+            subprocess.Popen(
+                ["/bin/bash", script_path],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+
+            # Bow out — the helper will relaunch us
+            self.performSelectorOnMainThread_withObject_waitUntilDone_(
+                b"_quitForUpdate:", None, False)
+        except Exception as e:
+            self._update_error = str(e)
+            self.performSelectorOnMainThread_withObject_waitUntilDone_(
+                b"showInstallError:", None, False)
+
+    @objc.typedSelector(b"v@:@")
+    def _quitForUpdate_(self, _):
+        self._do_stop()
+        NSApp.terminate_(None)
+
+    @objc.typedSelector(b"v@:@")
+    def showInstallError_(self, _):
+        err = getattr(self, "_update_error", "Unknown error")
+        NSApp.activateIgnoringOtherApps_(True)
+        alert = NSAlert.alloc().init()
+        alert.setMessageText_("Update failed")
+        alert.setInformativeText_(
+            f"{err}\n\nYou can download the update manually from the release page.")
+        alert.addButtonWithTitle_("Open Release Page")
+        alert.addButtonWithTitle_("OK")
         if alert.runModal() == NSAlertFirstButtonReturn:
             NSWorkspace.sharedWorkspace().openURL_(
-                NSURL.URLWithString_(latest.get("url", RELEASES_URL)))
+                NSURL.URLWithString_(RELEASES_URL))
 
     @objc.typedSelector(b"v@:@")
     def doLocale_(self, sender):
